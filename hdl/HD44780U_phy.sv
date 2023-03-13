@@ -7,8 +7,8 @@ module HD44780U_phy #(
     parameter PRESCALER_WIDTH = 16,
     parameter CHECK_BUSY_ERROR_WIDTH = 16
 ) (
-    input clk,
-    input nrst,
+    input clk_i,
+    input rst_ni,
 
     // Register config
     input        [PRESCALER_WIDTH-1:0] prescaler_10ns_i,
@@ -57,8 +57,8 @@ logic [DATA_WIDTH-1:0] data_out_d;
 logic                  e_d;
 logic                  data_oe_d;
 
-always_ff @(posedge clk or negedge nrst) begin 
-    if (!nrst) begin 
+always_ff @(posedge clk_i or negedge rst_ni) begin 
+    if (!rst_ni) begin 
         rs_o       <= 1'b0;
         rwb_o      <= 1'b0;
         e_o        <= 1'b0;
@@ -73,8 +73,8 @@ always_ff @(posedge clk or negedge nrst) begin
 end 
 
 // Capture read data
-always_ff @(posedge clk or negedge nrst) begin 
-    if (!nrst) begin 
+always_ff @(posedge clk_i or negedge rst_ni) begin 
+    if (!rst_ni) begin 
         lcd_data_o <= '0;
     end else if (next_state == CAPTURE_RDATA) begin 
         lcd_data_o <= data_in_i;
@@ -87,8 +87,8 @@ logic pipe_in_valid;
 
 assign pipe_in_advance = valid_instr_i & ready_instr_o;
 assign ready_instr_o = pipe_in_valid & phy_enable_i;
-always_ff @(posedge clk or negedge nrst) begin
-    if (!nrst) begin
+always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
         pipe_in_valid <= 1'b0;
     end else if (pipe_in_advance) begin
         pipe_in_valid <= 1'b0;
@@ -102,8 +102,8 @@ logic rs_instr;
 logic rwb_instr;
 logic [INSTR_WIDTH-3:0] wdata_instr;
 
-always_ff @(posedge clk or negedge nrst) begin
-    if (!nrst) begin
+always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
         rs_instr    <= '0;
         rwb_instr   <= '0;
         wdata_instr <= '0;
@@ -115,8 +115,8 @@ always_ff @(posedge clk or negedge nrst) begin
 end
 
 // Counter to meet lcd timing requirements
-always_ff @(posedge clk or negedge nrst) begin 
-    if (!nrst) begin 
+always_ff @(posedge clk_i or negedge rst_ni) begin 
+    if (!rst_ni) begin 
         cnt           <= '0;
         prescaler_cnt <= '0;
     end else if ((next_state == IDLE) || (next_state != curr_state))begin 
@@ -131,8 +131,8 @@ always_ff @(posedge clk or negedge nrst) begin
 end 
 
 // PHY state machine 
-always_ff @(posedge clk or negedge nrst) begin 
-    if (!nrst) begin 
+always_ff @(posedge clk_i or negedge rst_ni) begin 
+    if (!rst_ni) begin 
         curr_state <= IDLE;
     end else begin 
         curr_state <= next_state;
