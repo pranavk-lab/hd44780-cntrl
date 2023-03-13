@@ -5,10 +5,7 @@
 module lcd_driver_cfg #(
 parameter DATA_WIDTH = 8,
 parameter INSTR_WIDTH = 10,
-parameter LCD_INSTR_CNT = 80,
-parameter PRESCALER_WIDTH = 16,
-parameter CHECK_BUSY_ERROR_WIDTH = 16,
-parameter INSTR_ADDR_WIDTH = 6
+parameter PRESCALER_WIDTH = 16
 ) (
     input clk_i,
     input rst_ni,
@@ -126,8 +123,6 @@ logic lcd_instr_ren;
 logic lcd_instr_wen;
 logic prescaler_wen;
 logic prescaler_ren;
-logic busy_loop_cnt_max_wen;
-logic busy_loop_cnt_max_ren;
 
 
 assign lcd_ctrl_wen = (haddr_capture == `LCD_CTRL_OFFSET) &  hwrite_capture & !hresp_o;
@@ -139,18 +134,12 @@ assign lcd_instr_ren = (haddr_capture == `LCD_INSTR_OFFSET) & !hwrite_capture & 
 assign prescaler_wen = (haddr_capture == `PRESCALER_OFFSET) &  hwrite_capture & !hresp_o;
 assign prescaler_ren = (haddr_capture == `PRESCALER_OFFSET) & !hwrite_capture & !hresp_o;
 
-assign busy_loop_cnt_max_wen = (haddr_capture == `BUSY_LOOP_CNT_MAX_OFFSET) &  hwrite_capture & !hresp_o;
-assign busy_loop_cnt_max_ren = (haddr_capture == `BUSY_LOOP_CNT_MAX_OFFSET) & !hwrite_capture & !hresp_o;
-
-
 //******************************************************************************
 // Read only registers
 //******************************************************************************
 logic lcd_rdata_ren;
-logic error_ren;
 
 assign lcd_rdata_ren = (haddr_capture == `LCD_RDATA_OFFSET) & !hwrite_capture & !hresp_o;
-assign error_ren     = (haddr_capture == `LCD_ERROR_OFFSET) & !hwrite_capture & !hresp_o;
 
 //******************************************************************************
 // Write Registers
