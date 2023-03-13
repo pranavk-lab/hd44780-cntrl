@@ -11,23 +11,22 @@ module HD44780U_phy #(
     input nrst,
 
     // Register config
-    input                              auto_busy_check,
-    input        [PRESCALER_WIDTH-1:0] prescaler_10n,
-    input                              phy_enable,
-    output logic [     DATA_WIDTH-1:0] lcd_rdata,
+    input        [PRESCALER_WIDTH-1:0] prescaler_10ns_i,
+    input                              phy_enable_i,
+    output logic [     DATA_WIDTH-1:0] lcd_data_o,
 
     // LCD instruction interface
-    input        [INSTR_WIDTH-1:0] lcd_instr, // {RS, RWB, DB7, DB6/ADD6,..., DB0/ADD0}
-    input                          valid_instr,
-    output logic                   ready_instr,
+    input        [INSTR_WIDTH-1:0] lcd_instr_i, // {RS, RWB, DB7, DB6/ADD6,..., DB0/ADD0}
+    input                          valid_instr_i,
+    output logic                   ready_instr_o,
 
     // LCD IO interface
-    output logic [DATA_WIDTH-1:0] data_out,
-    input        [DATA_WIDTH-1:0] data_in,
-    output logic                  rs,
-    output logic                  rwb,
-    output logic                  e,
-    output logic                  data_oe
+    output logic [DATA_WIDTH-1:0] data_out_o,
+    input        [DATA_WIDTH-1:0] data_in_i,
+    output logic                  rs_o,
+    output logic                  rwb_o,
+    output logic                  e_o,
+    output logic                  data_oe_o
 );
 
 
@@ -48,37 +47,37 @@ typedef enum {
     RDATA_PHASE, 
     CAPTURE_RDATA, 
     E_HOLD
-} state;
+} state_e;
 
-state curr_state, next_state;
+state_e curr_state, next_state;
 
 // Register outputs
 logic [           1:0] lcd_addr;
-logic [DATA_WIDTH-1:0] lcd_wdata;
-logic                  lcd_enable;
-logic                  lcd_write_en;
+logic [DATA_WIDTH-1:0] data_out_d;
+logic                  e_d;
+logic                  data_oe_d;
 
 always_ff @(posedge clk or negedge nrst) begin 
     if (!nrst) begin 
-        rs       <= 1'b0;
-        rwb      <= 1'b0;
-        e        <= 1'b0;
-        data_out <= '0;
-        data_oe  <= '0;
+        rs_o       <= 1'b0;
+        rwb_o      <= 1'b0;
+        e_o        <= 1'b0;
+        data_out_o <= '0;
+        data_oe_o  <= '0;
     end else begin 
-        {rs, rwb} <= lcd_addr;
-        e         <= lcd_enable;
-        data_out  <= lcd_wdata;
-        data_oe   <= lcd_write_en;
+        {rs_o, rwb_o} <= lcd_addr;
+        e_o           <= e_d;
+        data_out_o    <= data_out_d;
+        data_oe_o     <= data_oe_d;
     end 
 end 
 
 // Capture read data
 always_ff @(posedge clk or negedge nrst) begin 
     if (!nrst) begin 
-        lcd_rdata <= '0;
+        lcd_data_o <= '0;
     end else if (next_state == CAPTURE_RDATA) begin 
-        lcd_rdata <= data_in;
+        lcd_data_o <= data_in_i;
     end 
 end 
 
@@ -86,8 +85,8 @@ end
 logic pipe_in_advance;
 logic pipe_in_valid;
 
-assign pipe_in_advance = valid_instr & ready_instr;
-assign ready_instr = pipe_in_valid & phy_enable;
+assign pipe_in_advance = valid_instr_i & ready_instr_o;
+assign ready_instr_o = pipe_in_valid & phy_enable_i;
 always_ff @(posedge clk or negedge nrst) begin
     if (!nrst) begin
         pipe_in_valid <= 1'b0;
@@ -109,9 +108,9 @@ always_ff @(posedge clk or negedge nrst) begin
         rwb_instr   <= '0;
         wdata_instr <= '0;
     end	else if (pipe_in_advance) begin
-        rs_instr    <= lcd_instr[INSTR_WIDTH-1];
-        rwb_instr   <= lcd_instr[INSTR_WIDTH-2];
-        wdata_instr <= lcd_instr[INSTR_WIDTH-3:0];
+        rs_instr    <= lcd_instr_i[INSTR_WIDTH-1];
+        rwb_instr   <= lcd_instr_i[INSTR_WIDTH-2];
+        wdata_instr <= lcd_instr_i[INSTR_WIDTH-3:0];
     end
 end
 
@@ -123,7 +122,7 @@ always_ff @(posedge clk or negedge nrst) begin
     end else if ((next_state == IDLE) || (next_state != curr_state))begin 
         cnt           <= '0;
         prescaler_cnt <= '0;
-    end else if (prescaler_cnt == prescaler_10n-1) begin 
+    end else if (prescaler_cnt == prescaler_10ns_i-1) begin 
         cnt           <= cnt + 1;
         prescaler_cnt <= '0;
     end else begin 
@@ -141,15 +140,15 @@ always_ff @(posedge clk or negedge nrst) begin
 end 
 
 always_comb begin 
-    lcd_enable   = 1'b0;
-    lcd_addr     = {rs, rwb};
-    lcd_wdata    = data_out;
-    lcd_write_en = data_oe;
-    next_state   = curr_state;
+    e_d   = 1'b0;
+    lcd_addr   = {rs_o, rwb_o};
+    data_out_d = data_out_o;
+    data_oe_d  = data_oe_o;
+    next_state = curr_state;
 
     case (curr_state) 
         IDLE: begin 
-            lcd_write_en = 1'b0;
+            data_oe_d = 1'b0;
             if (pipe_in_advance) begin 
                 next_state = ADDR_PHASE;
             end 
@@ -167,25 +166,25 @@ always_comb begin
         end 
 
         WDATA_PHASE: begin 
-            lcd_enable = 1'b1;
+            e_d = 1'b1;
             // Update the data out
-            lcd_wdata    = wdata_instr;
-            lcd_write_en = 1'b1;
+            data_out_d = wdata_instr;
+            data_oe_d  = 1'b1;
             if (cnt == EN_PW_CNT) begin 
                 next_state = E_HOLD;
             end 
         end 
 
         RDATA_PHASE: begin 
-            lcd_enable   = 1'b1;
-            lcd_write_en = 1'b0;
+            e_d       = 1'b1;
+            data_oe_d = 1'b0;
             if (cnt == RDATA_DELAY_CNT) begin 
                 next_state = CAPTURE_RDATA;
             end 
         end 
 
         CAPTURE_RDATA: begin 
-            lcd_enable = 1'b1;
+            e_d = 1'b1;
             if (cnt == (EN_PW_CNT - RDATA_DELAY_CNT)) begin 
                 next_state = E_HOLD;
             end 
