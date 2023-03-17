@@ -86,7 +86,9 @@ logic pipe_in_advance;
 logic pipe_in_valid;
 
 assign pipe_in_advance = valid_instr_i & ready_instr_o;
-assign ready_instr_o = pipe_in_valid & phy_enable_i;
+
+// Ready instruction is only asserted when LCD IO operation is complete 
+assign ready_instr_o   = pipe_in_valid & phy_enable_i;
 always_ff @(posedge clk_i or negedge rst_ni) begin
     if (!rst_ni) begin
         pipe_in_valid <= 1'b0;

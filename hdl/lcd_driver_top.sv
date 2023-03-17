@@ -35,13 +35,11 @@ logic [INSTR_WIDTH-1:0] lcd_instr; // {RS, RWB, DB7, DB6/ADD6,..., DB0/ADD0}
 logic 					phy_ready;
 logic 					valid_instr;
 
-logic [PRESCALER_WIDTH-1:0] prescaler_100n;
+logic [PRESCALER_WIDTH-1:0] prescaler_10ns;
 logic [     DATA_WIDTH-1:0] lcd_rdata;
 
 logic phy_enable;
 logic pc_clear;
-
-assign data_oe_o = {DATA_WIDTH{output_en}};
 
 // Register block
 lcd_driver_cfg #(
@@ -61,12 +59,12 @@ lcd_driver_cfg #(
     .hwrite_i     (hwrite_i    ),
     .hready_out_o (hready_out_o),
 
-    .prescaler_100n (prescaler_100n),
-    .phy_enable     (phy_enable    ),
-    .lcd_instr      (lcd_instr     ),
-    .phy_ready      (phy_ready     ),	
-    .valid_instr    (valid_inst    ),
-    .lcd_rdata      (lcd_rdata     )
+    .prescaler_10ns_o(prescaler_10ns),
+    .phy_enable_o    (phy_enable    ),
+    .lcd_instr_o     (lcd_instr     ),
+    .phy_ready_i     (phy_ready     ),	
+    .valid_instr_o   (valid_instr   ),
+    .lcd_rdata_i     (lcd_rdata     )
 );
 
 // PHY block
@@ -79,20 +77,19 @@ HD44780U_phy #(
     .rst_ni (rst_ni),
 
     // Register config
-    .auto_busy_check (auto_busy_check),
-    .prescaler_100n  (prescaler_100n ),
-    .phy_enable      (phy_enable     ),
-    .lcd_rdata       (lcd_rdata      ),
+    .prescaler_10ns_i (prescaler_10ns),
+    .phy_enable_i     (phy_enable    ),
+    .lcd_data_o       (lcd_rdata     ),
 
     // LCD instruction interface
-    .lcd_instr   (lcd_instr  ),
-    .valid_instr (valid_instr),
-    .ready_instr (phy_ready  ),
+    .lcd_instr_i   (lcd_instr  ),
+    .valid_instr_i (valid_instr),
+    .ready_instr_o (phy_ready  ),
 
     // LCD IO interface
     .data_in_i  (data_in_i ),
     .data_out_o (data_out_o),
-    .data_oe_o  (output_en ),
+    .data_oe_o  (data_oe_o ),
     .rs_o       (rs_o      ),
     .rwb_o      (rwb_o     ),
     .e_o        (e_o       )

@@ -20,11 +20,11 @@ parameter PRESCALER_WIDTH = 16
     output logic        hready_out_o,
     output logic        hresp_o,
 
-    input                              phy_read_i,
     input        [     DATA_WIDTH-1:0] lcd_rdata_i,
     output logic [PRESCALER_WIDTH-1:0] prescaler_10ns_o,
     output logic                       phy_enable_o,
     output logic [    INSTR_WIDTH-1:0] lcd_instr_o,
+    input  logic                       phy_ready_i,
     output logic                       valid_instr_o
 );
 
@@ -39,32 +39,22 @@ logic        hwrite_capture;
 logic        valid_trans;
 logic        lcd_instr_overwritten;
 
-typedef enum {OKAY, ERROR} resp_state_e;
+typedef enum bit [1:0] {
+    OKAY   = 2'b10, 
+    ERROR1 = 2'b01,
+    ERROR2 = 2'b11
+} resp_state_e;
 
 resp_state_e curr_resp_state, next_resp_state;
 
 //******************************************************************************
 // Capture incomming AHBlite command
 //******************************************************************************
-always_comb begin
-    if (valid_instr_o) begin 
-        if (phy_read_i) begin 
-            lcd_instr_overwritten = 1'b0;
-        end else begin 
-            lcd_instr_overwritten = 1'b1;
-        end 
-    end else begin 
-        lcd_instr_overwritten = 1'b0;
-    end 
-end 
-
-assign valid_trans = htrans_i[1] & !(hwrite_i & lcd_instr_overwritten);
-
 always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
         haddr_capture  <= '0;
         hwrite_capture <= '0;
-    end else if (valid_trans) begin
+    end else if (htrans_i[1]) begin
         haddr_capture  <= haddr_i;
         hwrite_capture <= hwrite_i;
     end else begin
@@ -74,12 +64,13 @@ end
 
 // Add other invalid/error transactions. 
 assign invalid_trans = (
-    htrans_i[1] & 
+    htrans_i[1] &
     (
-        // Out of boundry error
-        (haddr_i > `LCD_DRIVER_MAX_OFFSET)
+        (haddr_i >= `LCD_DRIVER_MAX_OFFSET) | 
+        (haddr_i == `LCD_INSTR_OFFSET) & hwrite_i & !phy_ready_i
     )
-); 
+
+);
 
 always_ff @(posedge clk_i) begin : sm_sync
     if (!rst_ni) begin 
@@ -89,23 +80,26 @@ always_ff @(posedge clk_i) begin : sm_sync
     end
 end 
 
+// State encoded outputs
+assign hresp_o      = curr_resp_state[0];
+assign hready_out_o = curr_resp_state[1];   
+
 always_comb begin 
-    hready_out_o      = 1'b1;
-    hresp_o           = 1'b0;
     next_resp_state = curr_resp_state;
 
     case(curr_resp_state)
 
         OKAY: begin 
             if (invalid_trans) begin 
-                hresp_o           = 1'b1;
-                hready_out_o      = 1'b0;
-                next_resp_state = ERROR;
+                next_resp_state = ERROR1;
             end 
         end
+        
+        ERROR1: begin 
+            next_resp_state = ERROR2;
+        end 
 
-        ERROR: begin 
-            hresp_o           = 1'b1;
+        ERROR2: begin 
             next_resp_state = OKAY;
         end 
 
@@ -154,13 +148,13 @@ end
 
 always_ff @(posedge clk_i) begin: lcd_instr_write_reg
     if (!rst_ni) begin 
-        lcd_instr_o   <= '0;
+        lcd_instr_o  <= '0;
+        valid_instr_o <= 1'b0;
+    end else if (valid_instr_o) begin 
         valid_instr_o <= 1'b0;
     end else if (lcd_instr_wen) begin 
-        lcd_instr_o   <= hwdata_i[INSTR_WIDTH-1:0]; 
-        valid_instr_o <= 1'b1;
-    end else if (phy_read_i) begin 
-        valid_instr_o <= 1'b0;
+        lcd_instr_o  <= hwdata_i[INSTR_WIDTH-1:0]; 
+        valid_instr_o <= 1'b1;  
     end
 end
 
@@ -177,7 +171,7 @@ end
 //******************************************************************************
 always_comb begin : read_reg
     case(1)
-        lcd_ctrl_ren            : hrdata_o = {30'h0, phy_read_i, phy_enable_o};
+        lcd_ctrl_ren            : hrdata_o = {30'h0, phy_ready_i, phy_enable_o};
         lcd_instr_ren           : hrdata_o = {{(32-INSTR_WIDTH){1'b0}}, lcd_instr_o};
         lcd_rdata_ren           : hrdata_o = {{(32-DATA_WIDTH){1'b0}}, lcd_rdata_i};
         prescaler_ren           : hrdata_o = {{(32-PRESCALER_WIDTH){1'b0}}, prescaler_10ns_o};

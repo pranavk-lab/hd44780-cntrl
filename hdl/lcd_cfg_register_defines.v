@@ -5,7 +5,7 @@
 `define LCD_INSTR_OFFSET            12'h4
 `define LCD_RDATA_OFFSET            12'h8
 `define PRESCALER_OFFSET            12'hc
-`define LCD_DRIVER_MAX_OFFSET       `LCD_ERROR_OFFSET
+`define LCD_DRIVER_MAX_OFFSET       `PRESCALER_OFFSET + 4
 `define OUT_BOUNDS_OFFSET           12'hfff
 
 `define LCD_CTRL_RW_MASK            32'h0000_0007
