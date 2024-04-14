@@ -1,7 +1,7 @@
 `ifndef INCLUDE_LCD_CFG_REGISTER_DEFINES_V
 `define INCLUDE_LCD_CFG_REGISTER_DEFINES_V
 
-`define LCD_CTRL_OFFSET             12'h0  
+`define LCD_CTRL_OFFSET             12'h0
 `define LCD_INSTR_OFFSET            12'h4
 `define LCD_RDATA_OFFSET            12'h8
 `define PRESCALER_OFFSET            12'hc
