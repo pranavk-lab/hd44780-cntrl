@@ -1,11 +1,11 @@
-`timescale 1ns/1ns
+`timescale 1ns / 1ns
 
 `include "lcd_cfg_register_defines.v"
 
 module lcd_driver_cfg #(
-parameter DATA_WIDTH = 8,
-parameter INSTR_WIDTH = 10,
-parameter PRESCALER_WIDTH = 16
+    parameter int DATA_WIDTH      = 8,
+    parameter int INSTR_WIDTH     = 10,
+    parameter int PRESCALER_WIDTH = 16
 ) (
     input clk_i,
     input rst_ni,
@@ -28,155 +28,155 @@ parameter PRESCALER_WIDTH = 16
     output logic                       valid_instr_o
 );
 
-logic read_trans;
-logic write_trans;
-logic wait_trans;
-logic ahblite_error_state;
-logic invalid_trans;
+  logic        read_trans;
+  logic        write_trans;
+  logic        wait_trans;
+  logic        ahblite_error_state;
+  logic        invalid_trans;
 
-logic [11:0] haddr_capture;
-logic        hwrite_capture;
-logic        valid_trans;
-logic        lcd_instr_overwritten;
+  logic [11:0] haddr_capture;
+  logic        hwrite_capture;
+  logic        valid_trans;
+  logic        lcd_instr_overwritten;
 
-typedef enum bit [1:0] {
-    OKAY   = 2'b10, 
+  typedef enum bit [1:0] {
+    OKAY   = 2'b10,
     ERROR1 = 2'b01,
     ERROR2 = 2'b11
-} resp_state_e;
+  } resp_state_e;
 
-resp_state_e curr_resp_state, next_resp_state;
+  resp_state_e curr_resp_state, next_resp_state;
 
-//******************************************************************************
-// Capture incomming AHBlite command
-//******************************************************************************
-always_ff @(posedge clk_i) begin
+  //******************************************************************************
+  // Capture incomming AHBlite command
+  //******************************************************************************
+  always_ff @(posedge clk_i) begin
     if (!rst_ni) begin
-        haddr_capture  <= '0;
-        hwrite_capture <= '0;
+      haddr_capture  <= '0;
+      hwrite_capture <= '0;
     end else if (htrans_i[1]) begin
-        haddr_capture  <= haddr_i;
-        hwrite_capture <= hwrite_i;
+      haddr_capture  <= haddr_i;
+      hwrite_capture <= hwrite_i;
     end else begin
-        hwrite_capture <= 1'b0;
+      hwrite_capture <= 1'b0;
     end
-end
+  end
 
-// Add other invalid/error transactions. 
-assign invalid_trans = (
+  // Add other invalid/error transactions.
+  assign invalid_trans = (
     htrans_i[1] &
     (
-        (haddr_i >= `LCD_DRIVER_MAX_OFFSET) | 
+        (haddr_i >= `LCD_DRIVER_MAX_OFFSET) |
         (haddr_i == `LCD_INSTR_OFFSET) & hwrite_i & !phy_ready_i
     )
 
 );
 
-always_ff @(posedge clk_i) begin : sm_sync
-    if (!rst_ni) begin 
-        curr_resp_state <= OKAY;
-    end else begin 
-        curr_resp_state <= next_resp_state;
+  always_ff @(posedge clk_i) begin : sm_sync
+    if (!rst_ni) begin
+      curr_resp_state <= OKAY;
+    end else begin
+      curr_resp_state <= next_resp_state;
     end
-end 
+  end
 
-// State encoded outputs
-assign hresp_o      = curr_resp_state[0];
-assign hready_out_o = curr_resp_state[1];   
+  // State encoded outputs
+  assign hresp_o      = curr_resp_state[0];
+  assign hready_out_o = curr_resp_state[1];
 
-always_comb begin 
+  always_comb begin
     next_resp_state = curr_resp_state;
 
-    case(curr_resp_state)
+    case (curr_resp_state)
 
-        OKAY: begin 
-            if (invalid_trans) begin 
-                next_resp_state = ERROR1;
-            end 
+      OKAY: begin
+        if (invalid_trans) begin
+          next_resp_state = ERROR1;
         end
-        
-        ERROR1: begin 
-            next_resp_state = ERROR2;
-        end 
+      end
 
-        ERROR2: begin 
-            next_resp_state = OKAY;
-        end 
+      ERROR1: begin
+        next_resp_state = ERROR2;
+      end
 
-        default: next_resp_state = OKAY;
+      ERROR2: begin
+        next_resp_state = OKAY;
+      end
+
+      default: next_resp_state = OKAY;
     endcase
-end
+  end
 
 
-//******************************************************************************
-// R/W registers
-//******************************************************************************
-logic lcd_ctrl_wen;
-logic lcd_ctrl_ren;
-logic lcd_instr_ren;
-logic lcd_instr_wen;
-logic prescaler_wen;
-logic prescaler_ren;
+  //******************************************************************************
+  // R/W registers
+  //******************************************************************************
+  logic lcd_ctrl_wen;
+  logic lcd_ctrl_ren;
+  logic lcd_instr_ren;
+  logic lcd_instr_wen;
+  logic prescaler_wen;
+  logic prescaler_ren;
 
 
-assign lcd_ctrl_wen = (haddr_capture == `LCD_CTRL_OFFSET) &  hwrite_capture & !hresp_o;
-assign lcd_ctrl_ren = (haddr_capture == `LCD_CTRL_OFFSET) & !hwrite_capture & !hresp_o;
+  assign lcd_ctrl_wen  = (haddr_capture == `LCD_CTRL_OFFSET) & hwrite_capture & !hresp_o;
+  assign lcd_ctrl_ren  = (haddr_capture == `LCD_CTRL_OFFSET) & !hwrite_capture & !hresp_o;
 
-assign lcd_instr_wen = (haddr_capture == `LCD_INSTR_OFFSET) &  hwrite_capture & !hresp_o;
-assign lcd_instr_ren = (haddr_capture == `LCD_INSTR_OFFSET) & !hwrite_capture & !hresp_o;
+  assign lcd_instr_wen = (haddr_capture == `LCD_INSTR_OFFSET) & hwrite_capture & !hresp_o;
+  assign lcd_instr_ren = (haddr_capture == `LCD_INSTR_OFFSET) & !hwrite_capture & !hresp_o;
 
-assign prescaler_wen = (haddr_capture == `PRESCALER_OFFSET) &  hwrite_capture & !hresp_o;
-assign prescaler_ren = (haddr_capture == `PRESCALER_OFFSET) & !hwrite_capture & !hresp_o;
+  assign prescaler_wen = (haddr_capture == `PRESCALER_OFFSET) & hwrite_capture & !hresp_o;
+  assign prescaler_ren = (haddr_capture == `PRESCALER_OFFSET) & !hwrite_capture & !hresp_o;
 
-//******************************************************************************
-// Read only registers
-//******************************************************************************
-logic lcd_rdata_ren;
+  //******************************************************************************
+  // Read only registers
+  //******************************************************************************
+  logic lcd_rdata_ren;
 
-assign lcd_rdata_ren = (haddr_capture == `LCD_RDATA_OFFSET) & !hwrite_capture & !hresp_o;
+  assign lcd_rdata_ren = (haddr_capture == `LCD_RDATA_OFFSET) & !hwrite_capture & !hresp_o;
 
-//******************************************************************************
-// Write Registers
-//******************************************************************************
-always_ff @(posedge clk_i) begin : lcd_ctrl_write_reg
+  //******************************************************************************
+  // Write Registers
+  //******************************************************************************
+  always_ff @(posedge clk_i) begin : lcd_ctrl_write_reg
     if (!rst_ni) begin
-        phy_enable_o <= '0;
+      phy_enable_o <= '0;
     end else if (lcd_ctrl_wen) begin
-        phy_enable_o <= hwdata_i[0];
+      phy_enable_o <= hwdata_i[0];
     end
-end
+  end
 
-always_ff @(posedge clk_i) begin: lcd_instr_write_reg
-    if (!rst_ni) begin 
-        lcd_instr_o  <= '0;
-        valid_instr_o <= 1'b0;
-    end else if (valid_instr_o) begin 
-        valid_instr_o <= 1'b0;
-    end else if (lcd_instr_wen) begin 
-        lcd_instr_o  <= hwdata_i[INSTR_WIDTH-1:0]; 
-        valid_instr_o <= 1'b1;  
-    end
-end
-
-always_ff @(posedge clk_i) begin : prescaler_100n_reg
+  always_ff @(posedge clk_i) begin : lcd_instr_write_reg
     if (!rst_ni) begin
-        prescaler_10ns_o <= 'd10;
-    end else if (prescaler_wen) begin
-        prescaler_10ns_o <= hwdata_i[PRESCALER_WIDTH-1:0];
+      lcd_instr_o   <= '0;
+      valid_instr_o <= 1'b0;
+    end else if (valid_instr_o) begin
+      valid_instr_o <= 1'b0;
+    end else if (lcd_instr_wen) begin
+      lcd_instr_o   <= hwdata_i[INSTR_WIDTH-1:0];
+      valid_instr_o <= 1'b1;
     end
-end
+  end
 
-//******************************************************************************
-// Read Registers
-//******************************************************************************
-always_comb begin : read_reg
-    case(1)
-        lcd_ctrl_ren            : hrdata_o = {30'h0, phy_ready_i, phy_enable_o};
-        lcd_instr_ren           : hrdata_o = {{(32-INSTR_WIDTH){1'b0}}, lcd_instr_o};
-        lcd_rdata_ren           : hrdata_o = {{(32-DATA_WIDTH){1'b0}}, lcd_rdata_i};
-        prescaler_ren           : hrdata_o = {{(32-PRESCALER_WIDTH){1'b0}}, prescaler_10ns_o};
-        default                 : hrdata_o = 32'h0;
+  always_ff @(posedge clk_i) begin : prescaler_100n_reg
+    if (!rst_ni) begin
+      prescaler_10ns_o <= 'd10;
+    end else if (prescaler_wen) begin
+      prescaler_10ns_o <= hwdata_i[PRESCALER_WIDTH-1:0];
+    end
+  end
+
+  //******************************************************************************
+  // Read Registers
+  //******************************************************************************
+  always_comb begin : read_reg
+    case (1)
+      lcd_ctrl_ren:  hrdata_o = {30'h0, phy_ready_i, phy_enable_o};
+      lcd_instr_ren: hrdata_o = {{(32 - INSTR_WIDTH) {1'b0}}, lcd_instr_o};
+      lcd_rdata_ren: hrdata_o = {{(32 - DATA_WIDTH) {1'b0}}, lcd_rdata_i};
+      prescaler_ren: hrdata_o = {{(32 - PRESCALER_WIDTH) {1'b0}}, prescaler_10ns_o};
+      default:       hrdata_o = 32'h0;
     endcase
-end
+  end
 
 endmodule
