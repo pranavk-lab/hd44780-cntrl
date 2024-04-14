@@ -1,6 +1,6 @@
 `timescale 1ns / 1ns
 
-module lcd_driver_top #(
+module lcd_cntrl_top #(
     parameter int DATA_WIDTH = 8,
     parameter int INSTR_WIDTH = 10,
     parameter int PRESCALER_WIDTH = 16
@@ -42,11 +42,11 @@ module lcd_driver_top #(
   logic                       pc_clear;
 
   // Register block
-  lcd_driver_cfg #(
+  lcd_cntrl_cfg #(
       .DATA_WIDTH(DATA_WIDTH),
       .INSTR_WIDTH(INSTR_WIDTH),
       .PRESCALER_WIDTH(PRESCALER_WIDTH)
-  ) lcd_driver_cfg (
+  ) lcd_cntrl_cfg (
       .clk_i (clk_i),
       .rst_ni(rst_ni),
 

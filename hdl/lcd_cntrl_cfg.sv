@@ -2,7 +2,7 @@
 
 `include "lcd_cfg_register_defines.v"
 
-module lcd_driver_cfg #(
+module lcd_cntrl_cfg #(
     parameter int DATA_WIDTH      = 8,
     parameter int INSTR_WIDTH     = 10,
     parameter int PRESCALER_WIDTH = 16
